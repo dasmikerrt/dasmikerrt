@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Creative Storytelling Assistant</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+<div class="container">
+    <div class="editor">
+        <textarea id="story" placeholder="Start your story..."></textarea>
+        <button id="continue">Continue Story</button>
+    </div>
+    <div class="media">
+        <div id="images"></div>
+        <audio id="audio" controls style="display:none"></audio>
+    </div>
+</div>
+<div class="bottom">
+    <form id="upload-form" enctype="multipart/form-data">
+        <input type="file" name="image" accept="image/*">
+        <button type="submit">Tell Story From Image</button>
+    </form>
+    <div id="vision-story"></div>
+</div>
+<script>
+$(function(){
+    $('#continue').click(function(){
+        $.ajax({
+            url: '/generate',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({ text: $('#story').val() }),
+            success: function(data){
+                $('#story').val($('#story').val() + "\n" + data.story);
+            }
+        });
+    });
+
+    $('#story').on('mouseup', function(){
+        let text = window.getSelection().toString();
+        if(text.length>0){
+            $.ajax({
+                url: '/image',
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({ prompt: text }),
+                success: function(data){
+                    $('#images').append('<img src="'+data.url+'" width="256" alt="'+text+'">');
+                }
+            });
+        }
+    });
+
+    $('#images').on('click', 'img', function(){
+        let caption = $(this).attr('alt') || 'A scene';
+        $.ajax({
+            url: '/speech',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({ text: caption, voice: 'nova' }),
+            success: function(data){
+                $('#audio').attr('src', data.url).show()[0].play();
+            }
+        });
+    });
+
+    $('#upload-form').submit(function(e){
+        e.preventDefault();
+        let formData = new FormData(this);
+        $.ajax({
+            url: '/vision',
+            type: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            success: function(data){
+                $('#vision-story').text(data.story);
+            }
+        });
+    });
+});
+</script>
+</body>
+</html>
